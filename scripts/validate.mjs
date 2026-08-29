@@ -7,11 +7,16 @@ const requiredFiles = [
   "assets/app.js",
   "assets/core.js",
   "assets/serial.js",
+  "assets/vendor/qrcode.js",
+  "assets/vendor/jsQR.js",
+  "assets/vendor/LICENSE-qrcodejs.txt",
+  "assets/vendor/LICENSE-jsQR.txt",
   "manifest.webmanifest",
   "sw.js",
   "docs/CURRENT_AND_TARGET.md",
   "docs/SERIAL_PROTOCOL.md",
   "docs/PERSONAL_GLASS.md",
+  "docs/THIRD_PARTY_NOTICES.md",
   "firmware/Kai_Zapfanlage_V4_4.ino",
   "firmware/Kai_PersonalGlass_Controller_POC.ino",
   "firmware/PersonalGlassController.h"
@@ -29,6 +34,9 @@ const requiredIds = [
   "view-personal",
   "glass-token-input",
   "register-glass",
+  "open-qr-scanner",
+  "qr-code-preview",
+  "achievement-grid",
   "admin-dialog",
   "connect-button"
 ];

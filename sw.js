@@ -1,4 +1,4 @@
-const CACHE_NAME = "kai-tap-v2";
+const CACHE_NAME = "kai-tap-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,8 @@ const APP_SHELL = [
   "./assets/app.js",
   "./assets/core.js",
   "./assets/serial.js",
+  "./assets/vendor/qrcode.js",
+  "./assets/vendor/jsQR.js",
   "./assets/icon.svg",
   "./manifest.webmanifest"
 ];

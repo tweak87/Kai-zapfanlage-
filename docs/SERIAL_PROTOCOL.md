@@ -61,7 +61,7 @@ Abgeschlossene Zapfung:
 Eine personalisierte Zapfung ergänzt ausschließlich neutrale Korrelationen:
 
 ```json
-{"type":"pour.completed","slot":3,"glassMl":500,"volumeMl":460,"fillPercent":92,"glassToken":"KAI-G01","assignmentId":"assign-…","eventId":"event-…","measurement":"weight"}
+{"type":"pour.completed","slot":3,"glassMl":500,"volumeMl":460,"fillPercent":92,"targetFillPercent":92,"glassToken":"KAI-G01","assignmentId":"assign-…","eventId":"event-…","measurement":"weight"}
 ```
 
 Name, E-Mail oder andere Profildaten werden niemals an den Controller übertragen.

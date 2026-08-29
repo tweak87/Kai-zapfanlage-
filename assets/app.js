@@ -2,6 +2,7 @@ import {
   DEFAULT_SETTINGS,
   aggregatePersonalHistory,
   aggregateHistory,
+  calculateGamification,
   createGlassAssignment,
   createPourRecord,
   getScenario,
@@ -112,6 +113,9 @@ const state = {
 };
 
 const serial = new WebSerialTransport();
+let qrScannerStream = null;
+let qrScannerTimer = null;
+let lastGeneratedQrUrl = null;
 
 function formatNumber(value, digits = 0) {
   return new Intl.NumberFormat("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
@@ -323,7 +327,18 @@ function renderPersonal() {
   $("#personal-stat-volume").textContent = formatNumber(stats.totalVolumeMl / 1000, 2);
   $("#personal-stat-pours").textContent = String(stats.pours);
   $("#personal-stat-event").textContent = formatNumber(stats.currentEventVolumeMl / 1000, 2);
-  $("#personal-stat-highscore").textContent = formatNumber(stats.highscoreMl / 1000, 2);
+  $("#personal-stat-highscore").textContent = String(stats.highscorePoints);
+
+  const game = user
+    ? calculateGamification(state.history, user.id, state.assignments, state.event.id)
+    : calculateGamification([], "", [], state.event.id);
+  $("#personal-level").textContent = String(game.level);
+  $("#personal-xp").textContent = String(game.xp);
+  $("#personal-xp-copy").textContent = `${game.xpToNextLevel} XP bis Level ${game.level + 1}`;
+  $("#personal-xp-progress").style.width = `${game.levelProgressPercent}%`;
+  $("#achievement-grid").innerHTML = game.badges.map((badge) => `<article class="achievement ${badge.unlocked ? "is-unlocked" : ""}">
+    <span aria-hidden="true">${badge.icon}</span><div><strong>${badge.title}</strong><small>${badge.description}</small></div><em>${badge.unlocked ? "FREIGESCHALTET" : "NOCH OFFEN"}</em>
+  </article>`).join("");
 
   const myAssignments = user
     ? state.assignments.filter((assignment) => assignment.userId === user.id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8)
@@ -339,10 +354,10 @@ function renderPersonal() {
 
   const leaderboard = state.profiles.map((profile) => {
     const personal = aggregatePersonalHistory(state.history, profile.id, state.event.id);
-    return { profile, volumeMl: personal.currentEventVolumeMl, pours: personal.currentEventPours };
-  }).filter((entry) => entry.pours > 0).sort((a, b) => b.volumeMl - a.volumeMl);
+    return { profile, volumeMl: personal.currentEventVolumeMl, pours: personal.currentEventPours, points: personal.currentEventQualityPoints };
+  }).filter((entry) => entry.pours > 0).sort((a, b) => b.points - a.points || b.pours - a.pours);
   $("#event-leaderboard").innerHTML = leaderboard.length ? leaderboard.map((entry, index) => `<li>
-    <span class="leader-rank">${index + 1}</span><span><strong>${escapeHtml(entry.profile.name)}</strong><small>${entry.pours} Zapfung${entry.pours === 1 ? "" : "en"}</small></span><strong>${formatNumber(entry.volumeMl / 1000, 2)} L</strong>
+    <span class="leader-rank">${index + 1}</span><span><strong>${escapeHtml(entry.profile.name)}</strong><small>${entry.pours} Zapfung${entry.pours === 1 ? "" : "en"} · ${formatNumber(entry.volumeMl / 1000, 2)} L</small></span><strong>${entry.points} Pkt.</strong>
   </li>`).join("") : `<li class="inline-empty"><strong>Noch keine personalisierte Zapfung</strong><span>Wähle im Betrieb das Testszenario „Personal Glass“.</span></li>`;
 }
 
@@ -398,9 +413,17 @@ function saveHistory() {
 }
 
 function recordPour(record) {
+  const beforeBadges = record.userId
+    ? new Set(calculateGamification(state.history, record.userId, state.assignments, state.event.id).badges.filter((badge) => badge.unlocked).map((badge) => badge.id))
+    : new Set();
   state.history.push(record);
   if (state.history.length > 5000) state.history = state.history.slice(-5000);
   saveHistory();
+  if (record.userId) {
+    const newlyUnlocked = calculateGamification(state.history, record.userId, state.assignments, state.event.id).badges
+      .find((badge) => badge.unlocked && !beforeBadges.has(badge.id));
+    if (newlyUnlocked) toast("Erfolg freigeschaltet", `${newlyUnlocked.icon} ${newlyUnlocked.title}: ${newlyUnlocked.description}`);
+  }
 }
 
 function setMachineState(label, kind = "success") {
@@ -466,7 +489,8 @@ async function startMockCycle() {
         userName: slot.assignment?.userName,
         glassToken: slot.assignment?.tokenId,
         assignmentId: slot.assignment?.id,
-        eventId: slot.assignment?.eventId
+        eventId: slot.assignment?.eventId,
+        targetFillPercent: slot.assignment?.preferences.fillPercent
       }));
       await animatePhase("rotate", 250 + (10 - state.settings.carouselSpeed) * 18, index);
     }
@@ -737,6 +761,7 @@ function mockScanGlass() {
   const freeToken = Array.from({ length: 24 }, (_, index) => `KAI-G${String(index + 1).padStart(2, "0")}`)
     .find((token) => !activeTokens.has(token)) || `KAI-${Date.now().toString(36).toUpperCase()}`;
   $("#glass-token-input").value = freeToken;
+  generateQrCode(false);
   toast("Mock-Scan erkannt", `${freeToken} wurde aus dem simulierten QR-/NFC-Tag gelesen.`);
 }
 
@@ -747,6 +772,118 @@ function registrationUrl(tokenInput) {
   url.searchParams.set("glass", tokenId);
   url.hash = "personal";
   return url.href;
+}
+
+function generateQrCode(announce = true) {
+  let tokenId;
+  try { tokenId = normalizeGlassToken($("#glass-token-input").value); }
+  catch (error) {
+    if (announce) toast("QR-Code nicht erstellt", error.message, "error");
+    return false;
+  }
+  if (!window.QRCode) {
+    toast("QR-Modul nicht geladen", "Bitte die Seite neu laden. Der manuelle Code bleibt nutzbar.", "error");
+    return false;
+  }
+  const preview = $("#qr-code-preview");
+  preview.innerHTML = "";
+  lastGeneratedQrUrl = registrationUrl(tokenId);
+  new window.QRCode(preview, {
+    text: lastGeneratedQrUrl,
+    width: 184,
+    height: 184,
+    colorDark: "#111613",
+    colorLight: "#ffffff",
+    correctLevel: window.QRCode.CorrectLevel.M
+  });
+  $("#qr-code-caption").textContent = `${tokenId} · enthält nur die Registrierungs-URL`;
+  $("#download-qr").disabled = false;
+  if (announce) toast("QR-Code erstellt", `${tokenId} kann jetzt gedruckt oder mit einem zweiten Handy gescannt werden.`);
+  return true;
+}
+
+function downloadQrCode() {
+  if (!lastGeneratedQrUrl && !generateQrCode(false)) return;
+  const preview = $("#qr-code-preview");
+  const image = $("img", preview);
+  const canvas = $("canvas", preview);
+  const dataUrl = image?.src || canvas?.toDataURL("image/png");
+  if (!dataUrl) {
+    toast("QR-Code noch nicht bereit", "Bitte kurz warten und erneut versuchen.", "error");
+    return;
+  }
+  const tokenId = normalizeGlassToken($("#glass-token-input").value);
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = `${tokenId}-registrierung.png`;
+  link.click();
+}
+
+function closeQrScanner() {
+  if (qrScannerTimer) window.clearTimeout(qrScannerTimer);
+  qrScannerTimer = null;
+  qrScannerStream?.getTracks().forEach((track) => track.stop());
+  qrScannerStream = null;
+  const video = $("#qr-video");
+  video.pause();
+  video.srcObject = null;
+  const dialog = $("#qr-scanner-dialog");
+  if (dialog.open) dialog.close();
+}
+
+function acceptScannedQr(payload) {
+  let tokenId;
+  try { tokenId = normalizeGlassToken(payload); }
+  catch {
+    $("#qr-scanner-status").textContent = "QR-Code erkannt, aber keine gültige Glas-ID gefunden.";
+    return false;
+  }
+  $("#glass-token-input").value = tokenId;
+  closeQrScanner();
+  generateQrCode(false);
+  toast("Glas-Code erkannt", `${tokenId} ist bereit zur Registrierung.`);
+  return true;
+}
+
+function scanCameraFrame() {
+  if (!qrScannerStream) return;
+  const video = $("#qr-video");
+  const canvas = $("#qr-scan-canvas");
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth && window.jsQR) {
+    const scale = Math.min(1, 960 / video.videoWidth);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    const result = window.jsQR(pixels.data, pixels.width, pixels.height, { inversionAttempts: "attemptBoth" });
+    if (result?.data && acceptScannedQr(result.data)) return;
+  }
+  qrScannerTimer = window.setTimeout(scanCameraFrame, 140);
+}
+
+async function openQrScanner() {
+  const dialog = $("#qr-scanner-dialog");
+  $("#qr-scanner-status").textContent = "Kamera wird gestartet …";
+  dialog.showModal();
+  if (!navigator.mediaDevices?.getUserMedia || !window.jsQR) {
+    $("#qr-scanner-status").textContent = "Kamerascanner ist in diesem Browser nicht verfügbar. Nutze die normale Handykamera oder gib die Glas-ID ein.";
+    return;
+  }
+  try {
+    qrScannerStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = $("#qr-video");
+    video.srcObject = qrScannerStream;
+    await video.play();
+    $("#qr-scanner-status").textContent = "QR-Code mittig in den Rahmen halten.";
+    scanCameraFrame();
+  } catch (error) {
+    closeQrScanner();
+    toast("Kamera nicht verfügbar", "Kamerazugriff wurde nicht erlaubt oder das Gerät besitzt keine nutzbare Kamera.", "error");
+  }
 }
 
 async function copyRegistrationLink() {
@@ -845,6 +982,17 @@ function setupEvents() {
   });
   $("#logout-profile").addEventListener("click", logoutProfile);
   $("#mock-scan").addEventListener("click", mockScanGlass);
+  $("#open-qr-scanner").addEventListener("click", openQrScanner);
+  $("#close-qr-scanner").addEventListener("click", closeQrScanner);
+  $("#qr-scanner-dialog").addEventListener("cancel", (event) => { event.preventDefault(); closeQrScanner(); });
+  $("#generate-qr").addEventListener("click", () => generateQrCode(true));
+  $("#download-qr").addEventListener("click", downloadQrCode);
+  $("#glass-token-input").addEventListener("input", () => {
+    lastGeneratedQrUrl = null;
+    $("#download-qr").disabled = true;
+    $("#qr-code-preview").innerHTML = '<span class="qr-placeholder">QR</span>';
+    $("#qr-code-caption").textContent = "Glas-ID eingeben und QR-Code erzeugen";
+  });
   $("#copy-registration-link").addEventListener("click", copyRegistrationLink);
   $("#register-glass").addEventListener("click", registerGlass);
   $("#personal-fill").addEventListener("input", () => { $("#personal-fill-output").textContent = `${$("#personal-fill").value} %`; });
@@ -997,7 +1145,10 @@ function initialize() {
   renderPersonal();
   const registrationToken = new URLSearchParams(location.search).get("glass");
   if (registrationToken) {
-    try { $("#glass-token-input").value = normalizeGlassToken(registrationToken); }
+    try {
+      $("#glass-token-input").value = normalizeGlassToken(registrationToken);
+      generateQrCode(false);
+    }
     catch { toast("Ungültiger Registrierungslink", "Die übergebene Glas-ID ist nicht gültig.", "error"); }
   }
   const requestedView = location.hash.slice(1);

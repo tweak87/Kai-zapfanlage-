@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   aggregatePersonalHistory,
   aggregateHistory,
+  calculateGamification,
   createGlassAssignment,
   createPourRecord,
   getScenario,
@@ -74,7 +75,7 @@ test("serial parser validates pour telegrams", () => {
 test("CSV export uses German-compatible semicolon separators", () => {
   const csv = historyToCsv([createPourRecord({ slot: 1, glassMl: 500, fillPercent: 99, timestamp: "2026-08-29T12:00:00Z" })]);
   assert.match(csv, /^Zeitpunkt;Position;Glas_ml/);
-  assert.match(csv, /;1;500;99;495;/);
+  assert.match(csv, /;1;500;99;;495;/);
 });
 
 test("QR and NFC links resolve to the same neutral glass token", () => {
@@ -113,5 +114,30 @@ test("personal history keeps totals and event highscore separate", () => {
   assert.equal(stats.totalVolumeMl, 1200);
   assert.equal(stats.currentEventVolumeMl, 300);
   assert.equal(stats.highscoreMl, 900);
+  assert.equal(stats.highscorePoints, 100);
   assert.equal(stats.registeredGlassCount, 2);
+});
+
+test("gamification rewards precision and reuse instead of consumed volume", () => {
+  const assignments = [
+    createGlassAssignment({ tokenId: "KAI-G04", userId: "u1", userName: "Alex", eventId: "e1", createdAt: "2026-08-29T10:00:00Z" }),
+    createGlassAssignment({ tokenId: "KAI-G04", userId: "u1", userName: "Alex", eventId: "e2", createdAt: "2026-08-30T10:00:00Z" })
+  ];
+  const records = [1, 2, 3].map((slot) => createPourRecord({
+    slot,
+    glassMl: 300,
+    fillPercent: 90,
+    targetFillPercent: 90,
+    userId: "u1",
+    userName: "Alex",
+    glassToken: "KAI-G04",
+    assignmentId: "a1",
+    eventId: slot === 1 ? "e1" : "e2",
+    timestamp: `2026-08-30T12:0${slot}:00Z`
+  }));
+  const game = calculateGamification(records, "u1", assignments, "e2");
+  assert.equal(game.precisePours, 3);
+  assert.equal(game.currentEventQualityPoints, 100);
+  assert.deepEqual(game.badges.filter((badge) => badge.unlocked).map((badge) => badge.id), ["qr-pioneer", "precision", "carousel", "reuse"]);
+  assert.ok(game.xp > 0);
 });
