@@ -38,6 +38,9 @@
           <button class="nav-item" data-view="analyse">
             <span class="nav-icon" aria-hidden="true">▥</span><span>Analyse</span>
           </button>
+          <button class="nav-item" data-view="personal">
+            <span class="nav-icon" aria-hidden="true">◇</span><span>Personal</span>
+          </button>
           <button class="nav-item" data-view="system">
             <span class="nav-icon" aria-hidden="true">⚙</span><span>System</span>
           </button>
@@ -143,6 +146,7 @@
                     <option value="missing">Position 3 und 5 fehlen</option>
                     <option value="underfill">Unterfüllung an Position 4</option>
                     <option value="empty-keg">Fass wird leer</option>
+                    <option value="personal">Personal Glass · 3 Profile + Gäste</option>
                   </select>
                 </div>
 
@@ -182,6 +186,82 @@
             </article>
           </section>
 
+          <section class="view" id="view-personal" data-view-panel="personal" hidden>
+            <article class="panel event-banner">
+              <div>
+                <p class="eyebrow">EVENTGEBUNDENE ZUORDNUNG</p>
+                <h2 id="event-name">Aktuelles Testevent</h2>
+                <p>Glas-Tokens enthalten keine Namen. Die Zuordnung wird nach dem Event automatisch ungültig.</p>
+              </div>
+              <div class="event-meta">
+                <span class="pill success" id="event-state">AKTIV</span>
+                <strong id="event-countdown">Noch 12 Std.</strong>
+                <small>Ende: <span id="event-expiry">—</span> · <span id="event-assignment-count">0</span> aktive Gläser</small>
+              </div>
+            </article>
+
+            <div class="personal-grid">
+              <article class="panel personal-auth-panel">
+                <div class="panel-header"><div><p class="eyebrow">MOCK-LOGIN</p><h2>Dein Profil</h2></div><span class="pill neutral">POC</span></div>
+                <div id="personal-auth-logged-out">
+                  <p class="panel-intro">Wähle ein lokales Testprofil. Echte Passwörter und geräteübergreifende Konten benötigen später einen Backenddienst.</p>
+                  <label class="field-label" for="profile-select">Vorhandenes Profil</label>
+                  <div class="select-wrap"><select id="profile-select"></select></div>
+                  <button class="button button-primary full-width auth-action" id="login-profile" type="button">Mock-Login</button>
+                  <div class="form-divider"><span>oder neues Profil</span></div>
+                  <label class="field-label" for="new-profile-name">Anzeigename</label>
+                  <input class="simple-input wide" id="new-profile-name" maxlength="40" autocomplete="name" placeholder="z. B. Alex" />
+                  <button class="button button-secondary full-width auth-action" id="create-profile" type="button">Profil lokal erstellen</button>
+                </div>
+                <div class="profile-session" id="personal-auth-logged-in" hidden>
+                  <div class="profile-avatar" id="profile-avatar">K</div>
+                  <strong id="profile-name">Kai</strong>
+                  <small id="profile-session-note">Lokale POC-Sitzung</small>
+                  <button class="button button-secondary full-width" id="logout-profile" type="button">Abmelden</button>
+                </div>
+              </article>
+
+              <article class="panel registration-panel">
+                <div class="panel-header"><div><p class="eyebrow">QR · NFC · MANUELL</p><h2>Glas registrieren</h2></div><span class="scan-symbol" aria-hidden="true">⌁</span></div>
+                <p class="panel-intro">Ein QR-Code oder NDEF-Tag öffnet diese Seite mit einer neutralen Glas-ID. Für den Test kann der Scan simuliert werden.</p>
+                <div id="registration-fields">
+                  <label class="field-label" for="glass-token-input">Glas-ID oder Registrierungslink</label>
+                  <div class="scan-row">
+                    <input class="simple-input wide" id="glass-token-input" maxlength="160" placeholder="KAI-G04" autocomplete="off" />
+                    <button class="button button-secondary" id="mock-scan" type="button">Mock-Scan</button>
+                  </div>
+                  <button class="text-button copy-link" id="copy-registration-link" type="button">QR-/NFC-Link kopieren</button>
+                  <div class="preference-grid">
+                    <label><span>Glasgröße</span><select id="personal-glass-size"><option value="300">0,3 l</option><option value="400">0,4 l</option><option value="500" selected>0,5 l</option></select></label>
+                    <label><span>Füllwunsch <output id="personal-fill-output">95 %</output></span><input id="personal-fill" type="range" min="60" max="100" value="95" /></label>
+                    <label><span>Schaum <output id="personal-foam-output">4</output></span><input id="personal-foam" type="range" min="1" max="10" value="4" /></label>
+                  </div>
+                  <button class="button button-primary full-width" id="register-glass" type="button">Glas für dieses Event registrieren</button>
+                  <p class="field-hint registration-note" id="registration-user-note">Zum Registrieren zuerst ein Mock-Profil anmelden.</p>
+                </div>
+              </article>
+            </div>
+
+            <div class="personal-metrics" aria-label="Persönliche Kennzahlen">
+              <article><span>GESAMTMENGE</span><strong><b id="personal-stat-volume">0,00</b> L</strong><small>über alle lokalen Events</small></article>
+              <article><span>ZAPFUNGEN</span><strong id="personal-stat-pours">0</strong><small>persönlich zugeordnet</small></article>
+              <article><span>DIESES EVENT</span><strong><b id="personal-stat-event">0,00</b> L</strong><small>seit Eventstart</small></article>
+              <article><span>PERSÖNLICHER HIGHSCORE</span><strong><b id="personal-stat-highscore">0,00</b> L</strong><small>höchste Eventmenge</small></article>
+            </div>
+
+            <div class="personal-bottom-grid">
+              <article class="panel glass-list-panel">
+                <div class="panel-header"><div><p class="eyebrow">MEINE ZUORDNUNGEN</p><h2>Registrierte Gläser</h2></div></div>
+                <div class="glass-assignment-list" id="my-glasses-list"></div>
+              </article>
+              <article class="panel leaderboard-panel">
+                <div class="panel-header"><div><p class="eyebrow">EVENTÜBERSICHT</p><h2>Highscore</h2></div><span class="pill neutral">LOKAL</span></div>
+                <ol class="leaderboard" id="event-leaderboard"></ol>
+                <p class="responsibility-note">Verbrauchsübersicht, kein Trinkziel. Alkohol verantwortungsvoll genießen; für eine echte App Alters-, Datenschutz- und Löschkonzept ergänzen.</p>
+              </article>
+            </div>
+          </section>
+
           <section class="view" id="view-historie" data-view-panel="historie" hidden>
             <article class="panel page-panel">
               <div class="panel-header wrap">
@@ -197,7 +277,7 @@
               </div>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Zeit</th><th>Position</th><th>Glas</th><th>Füllung</th><th>Menge</th><th>Quelle</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Zeit</th><th>Position</th><th>Glas</th><th>Füllung</th><th>Menge</th><th>Profil</th><th>Quelle</th><th>Status</th></tr></thead>
                   <tbody id="history-body"></tbody>
                 </table>
                 <div class="empty-state" id="history-empty">
@@ -272,6 +352,7 @@
                   <li><span>2</span><div><strong>Serielles JSON-Protokoll im ESP32</strong><small>Nicht-blockierende Statusmeldungen und Befehle ergänzen</small></div></li>
                   <li><span>3</span><div><strong>Mengenmessung kalibrieren</strong><small>Durchflusssensor oder Wägezelle nachrüsten</small></div></li>
                   <li><span>4</span><div><strong>Langzeitdaten zentral speichern</strong><small>Optionaler Backenddienst für mehrere Geräte und Benutzer</small></div></li>
+                  <li><span>5</span><div><strong>NFC-/QR-Identifikation</strong><small>Eventgebundene Tokens, persönliche Füllprofile und sicherer Normalmodus</small></div></li>
                 </ol>
               </article>
 
@@ -286,6 +367,7 @@
   "temperatureC": 5.4
 }</code></pre>
                 <a class="text-link" href="./docs/SERIAL_PROTOCOL.md">Schnittstellendokumentation öffnen →</a>
+                <a class="text-link secondary-doc-link" href="./docs/PERSONAL_GLASS.md">Personal-Glass-Konzept öffnen →</a>
               </article>
             </div>
           </section>
@@ -339,6 +421,7 @@
             <div class="setting-row"><div><label for="setting-temp-min">Temperatur Minimum</label><small>Untergrenze für Warnungen</small></div><div class="number-field"><input id="setting-temp-min" type="number" min="0" max="15" step="0.5" /><span>°C</span></div></div>
             <div class="setting-row"><div><label for="setting-temp-max">Temperatur Maximum</label><small>Obergrenze für Warnungen</small></div><div class="number-field"><input id="setting-temp-max" type="number" min="1" max="20" step="0.5" /><span>°C</span></div></div>
             <div class="setting-row"><div><label for="setting-cleaning">Reinigungsintervall</label><small>Erinnerung nach Anzahl Zapfungen</small></div><div class="number-field"><input id="setting-cleaning" type="number" min="10" max="1000" step="10" /><span>Gläser</span></div></div>
+            <div class="setting-row"><div><label for="setting-glass-ttl">Glas-Zuordnung</label><small>Maximale Laufzeit pro Event; danach automatisch frei</small></div><div class="number-field"><input id="setting-glass-ttl" type="number" min="1" max="72" step="1" /><span>Std.</span></div></div>
             <label class="switch-row"><span><strong>Akustische Hinweise</strong><small>Browserton bei Abschluss und Fehler</small></span><input id="setting-sound" type="checkbox" role="switch" /></label>
           </div>
 
@@ -346,6 +429,11 @@
             <div class="security-note"><strong>Hinweis zum Schutz</strong><p>GitHub Pages ist statisch. Die PIN verhindert versehentliche Bedienung, ist aber kein manipulationssicherer Zugriffsschutz. Echte Schreibbefehle müssen zusätzlich in der ESP32-Firmware freigegeben und validiert werden.</p></div>
             <div class="setting-row"><div><label for="setting-new-pin">Neue lokale Admin-PIN</label><small>Leer lassen, um die aktuelle PIN zu behalten</small></div><input class="simple-input" id="setting-new-pin" type="password" inputmode="numeric" maxlength="12" placeholder="Neue PIN" /></div>
             <label class="switch-row"><span><strong>Physische Freigabe verlangen</strong><small>Vor echten Parameteränderungen muss später Enter an der Anlage gedrückt werden</small></span><input id="setting-physical-confirm" type="checkbox" role="switch" /></label>
+            <div class="event-admin-box">
+              <div><strong>Event wechseln</strong><small>Erzeugt eine neue Event-ID. Alle bisherigen Glas-Zuordnungen werden sofort inaktiv, die Historie bleibt erhalten.</small></div>
+              <input class="simple-input wide" id="setting-event-name" maxlength="60" placeholder="Name des neuen Events" />
+              <button class="button button-danger" id="start-new-event" type="button">Neues Event starten</button>
+            </div>
           </div>
 
           <div class="dialog-footer">

@@ -1,4 +1,4 @@
-# Kai Tap Serial Protocol 1.0 (Vorschlag)
+# Kai Tap Serial Protocol 2.0 (Vorschlag)
 
 Das Protokoll ist für Web Serial über USB vorgesehen. Die aktuelle Firmware V4.4 implementiert es noch nicht. Die Webanwendung enthält bereits einen Client für dieses Format.
 
@@ -9,7 +9,7 @@ Das Protokoll ist für Web Serial über USB vorgesehen. Die aktuelle Firmware V4
 - UTF-8
 - genau ein JSON-Objekt pro Zeile (`\n`)
 - maximale Nachrichtenlänge empfohlen: 1024 Byte
-- Protokollversion: `1`
+- Protokollversion: `2` (Version 1 ohne Personal-Glass-Nachrichten bleibt lesbar)
 
 Unbekannte Nachrichtentypen werden ignoriert und dürfen nicht zum Stopp der Anlage führen.
 
@@ -18,13 +18,13 @@ Unbekannte Nachrichtentypen werden ignoriert und dürfen nicht zum Stopp der Anl
 Webseite an ESP32:
 
 ```json
-{"type":"system.hello","client":"kai-tap-web","protocol":1}
+{"type":"system.hello","client":"kai-tap-web","protocol":2}
 ```
 
 ESP32 an Webseite:
 
 ```json
-{"type":"system.ready","protocol":1,"firmware":"4.5.0","machineId":"kai-tap-01","state":"idle"}
+{"type":"system.ready","protocol":2,"firmware":"4.5.0","machineId":"kai-tap-01","state":"idle"}
 ```
 
 ## Statusmeldungen
@@ -57,6 +57,52 @@ Abgeschlossene Zapfung:
 ```
 
 `measurement` sollte später einen der Werte `estimated`, `flow` oder `weight` besitzen. Solange kein Sensor eingebaut ist, muss die Firmware `estimated` melden.
+
+Eine personalisierte Zapfung ergänzt ausschließlich neutrale Korrelationen:
+
+```json
+{"type":"pour.completed","slot":3,"glassMl":500,"volumeMl":460,"fillPercent":92,"glassToken":"KAI-G01","assignmentId":"assign-…","eventId":"event-…","measurement":"weight"}
+```
+
+Name, E-Mail oder andere Profildaten werden niemals an den Controller übertragen.
+
+## Personal Glass (optional)
+
+Der Leser meldet einen neutralen Token:
+
+```json
+{"type":"glass.detected","tokenId":"KAI-G01","slot":3,"reader":"nfc"}
+```
+
+Die Web-App beziehungsweise später das authentifizierte Event-Gateway löst die zeitlich begrenzte Zuordnung auf. Bei gültiger Zuordnung antwortet es:
+
+```json
+{
+  "type":"glass.profile.apply",
+  "tokenId":"KAI-G01",
+  "assignmentId":"assign-1724932800000-KAI-G01-a1b2c3",
+  "eventId":"event-1724932800000",
+  "expiresAt":"2026-08-29T23:00:00.000Z",
+  "ttlSeconds":7200,
+  "profile":{"glassMl":500,"fillPercent":92,"foamLevel":4,"flowRate":7}
+}
+```
+
+Bei unbekanntem, freigegebenem oder abgelaufenem Token gilt der Normalmodus:
+
+```json
+{"type":"glass.profile.apply","tokenId":"KAI-G99","assignmentId":null,"eventId":"event-1724932800000","fallback":"normal","profile":{"glassMl":500,"fillPercent":100,"foamLevel":4,"flowRate":7}}
+```
+
+Regeln für den Controller:
+
+1. Jedes Profil erneut auf feste Firmwaregrenzen begrenzen.
+2. Nur `assignmentId`, `eventId`, Token und Füllwerte kurzzeitig im RAM halten.
+3. Die Gültigkeit mit `ttlSeconds` begrenzen; `expiresAt` dient dem Gateway und dem Audit-Log.
+4. Profil nach Zapfung, Abbruch, Tokenwechsel oder Timeout löschen.
+5. Bei fehlender Antwort innerhalb eines festen kurzen Zeitlimits nie das vorige Profil weiterverwenden.
+6. Unbekannter Token bedeutet Normalprofil oder bewusstes Überspringen – diese Adminentscheidung muss lokal festgelegt sein.
+7. Identifikation darf Not-Aus, Endschalter oder lokale Bedienung niemals blockieren.
 
 Zyklusende:
 

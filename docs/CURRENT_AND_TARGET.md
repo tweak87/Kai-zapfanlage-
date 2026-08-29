@@ -148,3 +148,6 @@ Nach Inbetriebnahme der Schnittstelle bieten sich folgende Erweiterungen an:
 - Export für Verbrauch, Veranstaltung oder Abrechnung
 - Bedieneransicht mit großen Touch-Zielen und separater Serviceansicht
 - manipulationssicheres Audit-Log für Parameteränderungen
+- optionaler Personal-Glass-Modus mit QR-/NFC-Token, eventgebundener Zuordnung und sicherem Fallback auf den anonymen Normalbetrieb
+
+Die konkrete Identitätsarchitektur und der Hardwarevorschlag stehen in [PERSONAL_GLASS.md](PERSONAL_GLASS.md).

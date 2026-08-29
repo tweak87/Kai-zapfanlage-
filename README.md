@@ -2,6 +2,8 @@
 
 Moderne Bedien-, Test- und Auswertungsoberfläche für die Kai-Zapfanlage. Die erste Ausbaustufe läuft vollständig als Arduino-Mock im Browser und ist für eine spätere Web-Serial-Verbindung mit dem ESP32 vorbereitet.
 
+Der optionale **Personal-Glass-Modus** ergänzt zeitlich begrenzte QR-/NFC-Glaszuordnungen, persönliche Füllprofile und Eventstatistiken. Der normale anonyme Betrieb bleibt vollständig erhalten.
+
 ## Sofort ausprobieren
 
 1. Die veröffentlichte GitHub Page öffnen.
@@ -26,6 +28,11 @@ Alle Daten bleiben zunächst im lokalen Browserspeicher. Die Historie kann als C
 - lokaler PIN-geschützter Adminbereich
 - Einstellungen für Füllmenge, Durchfluss, Schaum, Füllhöhe, Geschwindigkeit, Anzapfzeit, Rondell, Temperatur und Wartung
 - vorbereiteter Web-Serial-Transport für Chrome/Edge mit JSON-Telegrammen bei 115200 Baud
+- lokaler Profil- und Login-Mock für den Proof of Concept
+- Registrierungslinks im Format `?glass=KAI-G04#personal` für QR und NFC-NDEF
+- eventgebundene Glaszuordnungen mit automatischem Ablauf und manueller Freigabe
+- persönliche Füllwünsche, Zapfstatistik und Event-Highscore
+- gemischtes Testszenario aus personalisierten, anonymen und fehlenden Gläsern
 
 ## Wichtige Grenze der aktuellen Messung
 
@@ -43,6 +50,7 @@ Eine Kombination aus Glas- oder Durchflussmessung und Fasswaage liefert die best
 assets/                 Weboberfläche, Datenmodell und Web Serial
 docs/                   Bestandsanalyse und Schnittstellenvertrag
 firmware/               Unveränderter Arduino-Bestand V4.4
+                        plus gefahrloser Personal-Glass-Protokoll-POC
 scripts/                Build- und Validierungswerkzeuge
 tests/                  Automatisierte Modell- und Protokolltests
 .github/workflows/      Qualitätsprüfung, Auto-Merge und Pages-Deployment
@@ -70,8 +78,12 @@ Alternativ kann `index.html` über einen beliebigen lokalen HTTP-Server geöffne
 
 - [Heutige Steuerung und Zielarchitektur](docs/CURRENT_AND_TARGET.md)
 - [Web-Serial-JSON-Protokoll](docs/SERIAL_PROTOCOL.md)
+- [Personal Glass: Ablauf, Hardware und Backend](docs/PERSONAL_GLASS.md)
 - [Originaler Arduino-Code V4.4](firmware/Kai_Zapfanlage_V4_4.ino)
+- [Controller-Proof-of-Concept](firmware/Kai_PersonalGlass_Controller_POC.ino)
 
 ## Sicherheit
 
 Der PIN-Schutz dieser statischen GitHub Page ist ein Bedien- und Fehlbedienungsschutz, keine sichere Benutzeranmeldung: Der Browser besitzt den Anwendungscode und den lokalen Einstellungsstand. Für eine echte Anlage sollten schreibende Befehle zusätzlich von der Firmware validiert, auf sichere Werte begrenzt und optional durch eine physische Freigabe an der Anlage bestätigt werden. Externer Mehrbenutzerzugriff erfordert einen authentifizierten Backenddienst.
+
+Auch der Profil-Login im Mockup ist nur eine lokale Simulation. Glas-Tags enthalten ausschließlich neutrale IDs; Namen, Passwörter oder dauerhafte Profile gehören weder auf den Tag noch in den Anlagencontroller.
