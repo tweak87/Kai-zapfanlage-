@@ -1,4 +1,4 @@
-const CACHE_NAME = "kai-tap-v1";
+const CACHE_NAME = "kai-tap-v2";
 const APP_SHELL = [
   "./",
   "./index.html",

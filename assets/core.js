@@ -1,4 +1,5 @@
 export const SLOT_COUNT = 6;
+export const DEFAULT_EVENT_TTL_HOURS = 12;
 
 export const DEFAULT_SETTINGS = Object.freeze({
   targetVolumeMl: 500,
@@ -13,6 +14,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   temperatureMaxC: 7,
   fillTolerancePercent: 5,
   cleaningInterval: 100,
+  glassAssignmentHours: DEFAULT_EVENT_TTL_HOURS,
   soundEnabled: false,
   physicalConfirmation: true
 });
@@ -37,6 +39,7 @@ export function normalizeSettings(input = {}) {
     temperatureMaxC: numberInRange(input.temperatureMaxC, DEFAULT_SETTINGS.temperatureMaxC, 1, 20),
     fillTolerancePercent: numberInRange(input.fillTolerancePercent, DEFAULT_SETTINGS.fillTolerancePercent, 1, 15),
     cleaningInterval: Math.round(numberInRange(input.cleaningInterval, DEFAULT_SETTINGS.cleaningInterval, 10, 1000)),
+    glassAssignmentHours: Math.round(numberInRange(input.glassAssignmentHours, DEFAULT_SETTINGS.glassAssignmentHours, 1, 72)),
     soundEnabled: Boolean(input.soundEnabled),
     physicalConfirmation: input.physicalConfirmation !== false
   };
@@ -63,12 +66,101 @@ export function getScenario(name, targetVolumeMl = 500) {
       { ...full, fillPercent: 98 }
     ],
     underfill: Array.from({ length: SLOT_COUNT }, (_, index) => ({ ...full, fillPercent: index === 3 ? 82 : 98 })),
-    "empty-keg": Array.from({ length: SLOT_COUNT }, (_, index) => ({ ...full, fillPercent: Math.max(15, 100 - index * 17) }))
+    "empty-keg": Array.from({ length: SLOT_COUNT }, (_, index) => ({ ...full, fillPercent: Math.max(15, 100 - index * 17) })),
+    personal: [
+      { present: true, glassMl: 500, fillPercent: 92, tokenId: "KAI-G01" },
+      { present: true, glassMl: 300, fillPercent: 88, tokenId: "KAI-G02" },
+      { present: true, glassMl: 500, fillPercent: 96, tokenId: "KAI-G03" },
+      { present: true, glassMl: 500, fillPercent: 98 },
+      { present: false, glassMl: 500, fillPercent: 0 },
+      { present: true, glassMl: 300, fillPercent: 95 }
+    ]
   };
   return (scenarios[name] || scenarios.full).map((slot, index) => ({ slot: index + 1, ...slot }));
 }
 
-export function createPourRecord({ slot, glassMl, fillPercent, temperatureC = 5.4, source = "mock", timestamp = new Date() }) {
+export function normalizeGlassToken(input) {
+  let raw = String(input ?? "").trim();
+  if (!raw) throw new Error("Glas-ID fehlt");
+  try {
+    const parsed = new URL(raw, "https://kai-tap.invalid/");
+    raw = parsed.searchParams.get("glass") || parsed.searchParams.get("token") || raw;
+  } catch {}
+  const token = decodeURIComponent(raw).trim().toUpperCase().replace(/\s+/g, "-");
+  if (!/^[A-Z0-9][A-Z0-9_-]{2,31}$/.test(token)) {
+    throw new Error("Glas-ID muss 3–32 Zeichen aus Buchstaben, Zahlen, - oder _ enthalten");
+  }
+  return token;
+}
+
+export function normalizeGlassPreferences(input = {}, defaults = DEFAULT_SETTINGS) {
+  return {
+    glassMl: Math.round(numberInRange(input.glassMl, defaults.targetVolumeMl, 200, 1000)),
+    fillPercent: Math.round(numberInRange(input.fillPercent, 95, 60, 100)),
+    foamLevel: Math.round(numberInRange(input.foamLevel, defaults.foamLevel, 1, 10)),
+    flowRate: Math.round(numberInRange(input.flowRate, defaults.flowRate, 1, 10))
+  };
+}
+
+export function createGlassAssignment({
+  tokenId,
+  userId,
+  userName,
+  eventId,
+  preferences = {},
+  createdAt = new Date(),
+  ttlHours = DEFAULT_EVENT_TTL_HOURS,
+  eventExpiresAt = null
+}) {
+  if (!String(userId || "").trim()) throw new Error("Benutzer-ID fehlt");
+  if (!String(eventId || "").trim()) throw new Error("Event-ID fehlt");
+  const created = new Date(createdAt);
+  if (Number.isNaN(created.getTime())) throw new Error("Ungültiger Registrierungszeitpunkt");
+  const ttlExpiry = created.getTime() + numberInRange(ttlHours, DEFAULT_EVENT_TTL_HOURS, 1, 72) * 60 * 60 * 1000;
+  const eventExpiry = eventExpiresAt ? new Date(eventExpiresAt).getTime() : Number.POSITIVE_INFINITY;
+  const expiresAt = new Date(Math.min(ttlExpiry, Number.isFinite(eventExpiry) ? eventExpiry : ttlExpiry));
+  const normalizedToken = normalizeGlassToken(tokenId);
+  return {
+    id: `assign-${created.getTime()}-${normalizedToken}-${Math.random().toString(16).slice(2, 8)}`,
+    tokenId: normalizedToken,
+    userId: String(userId).trim(),
+    userName: String(userName || "Gast").trim().slice(0, 40) || "Gast",
+    eventId: String(eventId).trim(),
+    preferences: normalizeGlassPreferences(preferences),
+    createdAt: created.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    status: "active"
+  };
+}
+
+export function isAssignmentActive(assignment, { eventId = null, now = new Date() } = {}) {
+  if (!assignment || assignment.status === "released") return false;
+  if (eventId && assignment.eventId !== eventId) return false;
+  const expiry = new Date(assignment.expiresAt).getTime();
+  return Number.isFinite(expiry) && expiry > new Date(now).getTime();
+}
+
+export function resolveGlassAssignment(assignments = [], tokenInput, eventId, now = new Date()) {
+  let tokenId;
+  try { tokenId = normalizeGlassToken(tokenInput); } catch { return null; }
+  return [...assignments]
+    .filter((assignment) => assignment.tokenId === tokenId && isAssignmentActive(assignment, { eventId, now }))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+}
+
+export function createPourRecord({
+  slot,
+  glassMl,
+  fillPercent,
+  temperatureC = 5.4,
+  source = "mock",
+  timestamp = new Date(),
+  userId = null,
+  userName = null,
+  glassToken = null,
+  assignmentId = null,
+  eventId = null
+}) {
   const normalizedFill = numberInRange(fillPercent, 0, 0, 120);
   const normalizedGlass = numberInRange(glassMl, 500, 50, 2000);
   return {
@@ -79,7 +171,37 @@ export function createPourRecord({ slot, glassMl, fillPercent, temperatureC = 5.
     fillPercent: Math.round(normalizedFill),
     volumeMl: Math.round(normalizedGlass * normalizedFill / 100),
     temperatureC: Math.round(numberInRange(temperatureC, 5.4, -20, 60) * 10) / 10,
-    source: source === "serial" ? "serial" : "mock"
+    source: source === "serial" ? "serial" : "mock",
+    personalized: Boolean(userId && glassToken),
+    userId: userId ? String(userId).slice(0, 80) : null,
+    userName: userName ? String(userName).slice(0, 40) : null,
+    glassToken: glassToken ? normalizeGlassToken(glassToken) : null,
+    assignmentId: assignmentId ? String(assignmentId).slice(0, 120) : null,
+    eventId: eventId ? String(eventId).slice(0, 120) : null
+  };
+}
+
+export function aggregatePersonalHistory(records = [], userId, currentEventId = null) {
+  const personal = records.filter((record) => record?.personalized && record.userId === userId && Number.isFinite(Number(record.volumeMl)));
+  const byEvent = new Map();
+  for (const record of personal) {
+    const key = record.eventId || "legacy";
+    const summary = byEvent.get(key) || { eventId: key, pours: 0, volumeMl: 0 };
+    summary.pours += 1;
+    summary.volumeMl += Number(record.volumeMl);
+    byEvent.set(key, summary);
+  }
+  const eventSummaries = [...byEvent.values()].sort((a, b) => b.volumeMl - a.volumeMl);
+  const currentEvent = byEvent.get(currentEventId) || { eventId: currentEventId, pours: 0, volumeMl: 0 };
+  return {
+    pours: personal.length,
+    totalVolumeMl: personal.reduce((sum, record) => sum + Number(record.volumeMl), 0),
+    currentEventPours: currentEvent.pours,
+    currentEventVolumeMl: currentEvent.volumeMl,
+    highscoreMl: eventSummaries[0]?.volumeMl || 0,
+    highscoreEventId: eventSummaries[0]?.eventId || null,
+    registeredGlassCount: new Set(personal.map((record) => record.glassToken).filter(Boolean)).size,
+    eventSummaries
   };
 }
 
@@ -139,7 +261,7 @@ function csvCell(value) {
 }
 
 export function historyToCsv(records = []) {
-  const header = ["Zeitpunkt", "Position", "Glas_ml", "Fuellstand_Prozent", "Menge_ml", "Temperatur_C", "Quelle"];
+  const header = ["Zeitpunkt", "Position", "Glas_ml", "Fuellstand_Prozent", "Menge_ml", "Temperatur_C", "Quelle", "Personalisiert", "Benutzer", "Glas_ID", "Event_ID"];
   const rows = records.map((record) => [
     record.timestamp,
     record.slot,
@@ -147,7 +269,11 @@ export function historyToCsv(records = []) {
     record.fillPercent,
     record.volumeMl,
     record.temperatureC,
-    record.source
+    record.source,
+    record.personalized ? "ja" : "nein",
+    record.userName,
+    record.glassToken,
+    record.eventId
   ]);
   return [header, ...rows].map((row) => row.map(csvCell).join(";")).join("\n");
 }
@@ -165,6 +291,7 @@ export function parseSerialLine(line) {
       if (!Number.isFinite(Number(message[field]))) throw new Error(`Feld ${field} fehlt`);
     }
   }
+  if (message.type === "glass.detected") normalizeGlassToken(message.tokenId);
   return message;
 }
 

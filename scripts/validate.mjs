@@ -11,7 +11,10 @@ const requiredFiles = [
   "sw.js",
   "docs/CURRENT_AND_TARGET.md",
   "docs/SERIAL_PROTOCOL.md",
-  "firmware/Kai_Zapfanlage_V4_4.ino"
+  "docs/PERSONAL_GLASS.md",
+  "firmware/Kai_Zapfanlage_V4_4.ino",
+  "firmware/Kai_PersonalGlass_Controller_POC.ino",
+  "firmware/PersonalGlassController.h"
 ];
 
 for (const file of requiredFiles) await access(file);
@@ -23,6 +26,9 @@ const requiredIds = [
   "start-cycle",
   "stop-cycle",
   "history-body",
+  "view-personal",
+  "glass-token-input",
+  "register-glass",
   "admin-dialog",
   "connect-button"
 ];

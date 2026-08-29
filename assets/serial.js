@@ -23,7 +23,7 @@ export class WebSerialTransport extends EventTarget {
     this.writer = encoder.writable.getWriter();
     this.dispatchEvent(new CustomEvent("connection", { detail: { connected: true } }));
     this.readLoop();
-    await this.send({ type: "system.hello", client: "kai-tap-web", protocol: 1 });
+    await this.send({ type: "system.hello", client: "kai-tap-web", protocol: 2 });
   }
 
   async readLoop() {
