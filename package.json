@@ -1,0 +1,16 @@
+{
+  "name": "kai-tap-control",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub-Pages-Dashboard und Arduino-Mock für die Kai-Zapfanlage",
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate.mjs",
+    "build": "node scripts/build.mjs",
+    "check": "npm run test && npm run validate && npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
