@@ -228,9 +228,16 @@
                   <label class="field-label" for="glass-token-input">Glas-ID oder Registrierungslink</label>
                   <div class="scan-row">
                     <input class="simple-input wide" id="glass-token-input" maxlength="160" placeholder="KAI-G04" autocomplete="off" />
-                    <button class="button button-secondary" id="mock-scan" type="button">Mock-Scan</button>
+                    <div class="scan-actions">
+                      <button class="button button-primary" id="open-qr-scanner" type="button">Kamera scannen</button>
+                      <button class="button button-secondary" id="mock-scan" type="button">Mock</button>
+                    </div>
                   </div>
                   <button class="text-button copy-link" id="copy-registration-link" type="button">QR-/NFC-Link kopieren</button>
+                  <div class="qr-maker">
+                    <div class="qr-code-preview" id="qr-code-preview"><span class="qr-placeholder">QR</span></div>
+                    <div><strong>QR-Etikett für das Glas</strong><small id="qr-code-caption">Glas-ID eingeben und QR-Code erzeugen</small><div><button class="button button-secondary" id="generate-qr" type="button">QR-Code erzeugen</button><button class="text-button" id="download-qr" type="button" disabled>PNG laden</button></div></div>
+                  </div>
                   <div class="preference-grid">
                     <label><span>Glasgröße</span><select id="personal-glass-size"><option value="300">0,3 l</option><option value="400">0,4 l</option><option value="500" selected>0,5 l</option></select></label>
                     <label><span>Füllwunsch <output id="personal-fill-output">95 %</output></span><input id="personal-fill" type="range" min="60" max="100" value="95" /></label>
@@ -246,7 +253,7 @@
               <article><span>GESAMTMENGE</span><strong><b id="personal-stat-volume">0,00</b> L</strong><small>über alle lokalen Events</small></article>
               <article><span>ZAPFUNGEN</span><strong id="personal-stat-pours">0</strong><small>persönlich zugeordnet</small></article>
               <article><span>DIESES EVENT</span><strong><b id="personal-stat-event">0,00</b> L</strong><small>seit Eventstart</small></article>
-              <article><span>PERSÖNLICHER HIGHSCORE</span><strong><b id="personal-stat-highscore">0,00</b> L</strong><small>höchste Eventmenge</small></article>
+              <article><span>QUALITÄTS-HIGHSCORE</span><strong><b id="personal-stat-highscore">0</b> Pkt.</strong><small>beste mittlere Füllpräzision</small></article>
             </div>
 
             <div class="personal-bottom-grid">
@@ -255,11 +262,21 @@
                 <div class="glass-assignment-list" id="my-glasses-list"></div>
               </article>
               <article class="panel leaderboard-panel">
-                <div class="panel-header"><div><p class="eyebrow">EVENTÜBERSICHT</p><h2>Highscore</h2></div><span class="pill neutral">LOKAL</span></div>
+                <div class="panel-header"><div><p class="eyebrow">EVENTÜBERSICHT</p><h2>Fair-Play Highscore</h2></div><span class="pill neutral">LOKAL</span></div>
                 <ol class="leaderboard" id="event-leaderboard"></ol>
                 <p class="responsibility-note">Verbrauchsübersicht, kein Trinkziel. Alkohol verantwortungsvoll genießen; für eine echte App Alters-, Datenschutz- und Löschkonzept ergänzen.</p>
               </article>
             </div>
+
+            <article class="panel gamification-panel">
+              <div class="panel-header"><div><p class="eyebrow">LEVEL & ERFOLGE</p><h2>Zapfpass</h2></div><span class="pill warning">QUALITÄT STATT MENGE</span></div>
+              <div class="level-row">
+                <div class="level-orb"><span>LEVEL</span><strong id="personal-level">1</strong></div>
+                <div><strong><span id="personal-xp">0</span> XP</strong><small id="personal-xp-copy">100 XP bis Level 2</small><div class="progress-track"><span id="personal-xp-progress"></span></div></div>
+              </div>
+              <div class="achievement-grid" id="achievement-grid"></div>
+              <p class="responsibility-note">XP und Abzeichen belohnen Registrierung, Wiederverwendung und präzise Füllungen. Getrunkene Liter erhöhen weder Level noch Qualitäts-Highscore.</p>
+            </article>
           </section>
 
           <section class="view" id="view-historie" data-view-panel="historie" hidden>
@@ -377,6 +394,22 @@
 
     <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
 
+    <dialog class="qr-scanner-dialog" id="qr-scanner-dialog">
+      <div class="scanner-shell">
+        <div class="dialog-header">
+          <div><p class="eyebrow">HANDYKAMERA</p><h2>Glas-QR scannen</h2></div>
+          <button class="icon-button" id="close-qr-scanner" aria-label="Scanner schließen" type="button">×</button>
+        </div>
+        <div class="scanner-stage">
+          <video id="qr-video" muted playsinline aria-label="Livebild der Kamera"></video>
+          <div class="scanner-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        </div>
+        <canvas id="qr-scan-canvas" hidden></canvas>
+        <p id="qr-scanner-status" role="status">Kamera wird gestartet …</p>
+        <p class="data-caveat">Die Bilder werden nur lokal im Browser ausgewertet und nicht hochgeladen. Alternativ kann die normale Handykamera den QR-Link direkt öffnen.</p>
+      </div>
+    </dialog>
+
     <dialog class="admin-dialog" id="admin-dialog">
       <form method="dialog" class="dialog-shell" id="admin-form">
         <div class="dialog-header">
@@ -445,6 +478,8 @@
       </form>
     </dialog>
 
+    <script src="./assets/vendor/qrcode.js"></script>
+    <script src="./assets/vendor/jsQR.js"></script>
     <script type="module" src="./assets/app.js"></script>
   </body>
 </html>

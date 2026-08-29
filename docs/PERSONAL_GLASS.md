@@ -8,11 +8,14 @@ Das Mockup kann bereits:
 
 - lokale Testprofile anmelden und neue Profile anlegen,
 - neutrale Glas-IDs per Eingabe, Mock-Scan oder URL-Parameter übernehmen,
+- echte QR-Codes lokal erzeugen und als PNG-Etikett herunterladen,
+- QR-Codes mit der Handy-Rückkamera direkt in der Web-App erkennen,
 - Glasgröße, Füllwunsch und Schaumniveau speichern,
 - Zuordnungen auf das aktuelle Event und eine maximale Laufzeit begrenzen,
 - belegte Tokens gegen Übernahme durch andere Profile schützen,
 - Gläser vorzeitig freigeben und anschließend neu registrieren,
 - persönliche Zapfungen, Gesamtmenge, Eventmenge und den besten Eventwert auswerten,
+- XP, Level und Abzeichen für Registrierung, Präzision, Rondellnutzung und Mehrweg vergeben,
 - ein neues Event starten, wodurch alte Zuordnungen sofort inaktiv werden,
 - im Personal-Glass-Testszenario drei Profile und anonyme Gläser gemeinsam simulieren.
 
@@ -35,6 +38,21 @@ https://tweak87.github.io/Kai-zapfanlage-/?glass=KAI-G04#personal
 ```
 
 Der Token enthält **keinen Namen, keine E-Mail und kein Füllprofil**. Ein unveränderter Tag kann deshalb bei vielen Events erneut eingesetzt werden.
+
+Der Kamerascanner nutzt `getUserMedia()` und wertet jedes Bild mit der lokal eingebundenen Bibliothek jsQR direkt im Browser aus. Kamerabilder werden weder gespeichert noch hochgeladen. GitHub Pages liefert die dafür notwendige HTTPS-Verbindung. Wird der Kamerazugriff abgelehnt, bleiben die normale Handy-Kamera, der Mock-Scan und die manuelle Eingabe verfügbar.
+
+Die QR-Erzeugung läuft ebenfalls lokal. Für ein echtes Etikett wird eine Glas-ID eingetragen, der QR-Code erzeugt und als PNG geladen. Der Code sollte zusätzlich lesbar aufgedruckt werden, damit ein beschädigtes Etikett manuell eingegeben werden kann.
+
+## Gamification ohne Trinkanreiz
+
+Die App trennt Mengeninformation und Spielmechanik bewusst. Liter werden weiterhin persönlich dokumentiert, erhöhen aber weder Level noch Qualitäts-Highscore. Belohnt werden:
+
+- Registrierung eines wiederverwendbaren Glases,
+- Füllungen innerhalb des persönlichen Zielbands,
+- Nutzung verschiedener Rondellpositionen,
+- Wiederverwendung desselben Glases bei einem späteren Event.
+
+Der Event-Highscore vergleicht die mittlere Füllpräzision von 0 bis 100 Punkten. Damit entsteht ein spielerischer Qualitätsvergleich, ohne möglichst hohen Konsum zum Ziel zu machen.
 
 ## Hardwarevorschlag
 
@@ -100,6 +118,8 @@ GitHub Pages kann das Frontend ausliefern, aber keine sicheren Konten oder gemei
 - Audit-Log für Eventwechsel und Parameteränderungen.
 
 Der ESP32 darf keine Passwörter, Namen oder dauerhaften Benutzerprofile speichern und sollte nicht direkt aus dem Internet erreichbar sein.
+
+Die lokal eingebundenen QR-Bibliotheken und ihre Lizenzen sind in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) dokumentiert.
 
 ## Empfohlene Ausbaureihenfolge
 

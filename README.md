@@ -30,8 +30,10 @@ Alle Daten bleiben zunächst im lokalen Browserspeicher. Die Historie kann als C
 - vorbereiteter Web-Serial-Transport für Chrome/Edge mit JSON-Telegrammen bei 115200 Baud
 - lokaler Profil- und Login-Mock für den Proof of Concept
 - Registrierungslinks im Format `?glass=KAI-G04#personal` für QR und NFC-NDEF
+- lokale QR-Code-Erzeugung mit PNG-Download und Kamerascanner für die Handy-Rückkamera
 - eventgebundene Glaszuordnungen mit automatischem Ablauf und manueller Freigabe
 - persönliche Füllwünsche, Zapfstatistik und Event-Highscore
+- XP, Level und Abzeichen für Präzision, Rondellnutzung und Mehrweg
 - gemischtes Testszenario aus personalisierten, anonymen und fehlenden Gläsern
 
 ## Wichtige Grenze der aktuellen Messung
@@ -79,6 +81,7 @@ Alternativ kann `index.html` über einen beliebigen lokalen HTTP-Server geöffne
 - [Heutige Steuerung und Zielarchitektur](docs/CURRENT_AND_TARGET.md)
 - [Web-Serial-JSON-Protokoll](docs/SERIAL_PROTOCOL.md)
 - [Personal Glass: Ablauf, Hardware und Backend](docs/PERSONAL_GLASS.md)
+- [Lizenzen der eingebundenen QR-Bibliotheken](docs/THIRD_PARTY_NOTICES.md)
 - [Originaler Arduino-Code V4.4](firmware/Kai_Zapfanlage_V4_4.ino)
 - [Controller-Proof-of-Concept](firmware/Kai_PersonalGlass_Controller_POC.ino)
 

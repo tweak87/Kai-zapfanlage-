@@ -159,7 +159,8 @@ export function createPourRecord({
   userName = null,
   glassToken = null,
   assignmentId = null,
-  eventId = null
+  eventId = null,
+  targetFillPercent = null
 }) {
   const normalizedFill = numberInRange(fillPercent, 0, 0, 120);
   const normalizedGlass = numberInRange(glassMl, 500, 50, 2000);
@@ -177,7 +178,8 @@ export function createPourRecord({
     userName: userName ? String(userName).slice(0, 40) : null,
     glassToken: glassToken ? normalizeGlassToken(glassToken) : null,
     assignmentId: assignmentId ? String(assignmentId).slice(0, 120) : null,
-    eventId: eventId ? String(eventId).slice(0, 120) : null
+    eventId: eventId ? String(eventId).slice(0, 120) : null,
+    targetFillPercent: targetFillPercent == null ? null : Math.round(numberInRange(targetFillPercent, 100, 60, 100))
   };
 }
 
@@ -186,22 +188,71 @@ export function aggregatePersonalHistory(records = [], userId, currentEventId = 
   const byEvent = new Map();
   for (const record of personal) {
     const key = record.eventId || "legacy";
-    const summary = byEvent.get(key) || { eventId: key, pours: 0, volumeMl: 0 };
+    const summary = byEvent.get(key) || { eventId: key, pours: 0, volumeMl: 0, qualityTotal: 0 };
     summary.pours += 1;
     summary.volumeMl += Number(record.volumeMl);
+    const target = Number(record.targetFillPercent ?? 100);
+    summary.qualityTotal += Math.max(0, 100 - Math.abs(Number(record.fillPercent) - target) * 10);
     byEvent.set(key, summary);
   }
-  const eventSummaries = [...byEvent.values()].sort((a, b) => b.volumeMl - a.volumeMl);
-  const currentEvent = byEvent.get(currentEventId) || { eventId: currentEventId, pours: 0, volumeMl: 0 };
+  const eventSummaries = [...byEvent.values()].map((summary) => ({
+    ...summary,
+    qualityPoints: summary.pours ? Math.round(summary.qualityTotal / summary.pours) : 0
+  })).sort((a, b) => b.volumeMl - a.volumeMl);
+  const currentEvent = eventSummaries.find((summary) => summary.eventId === currentEventId)
+    || { eventId: currentEventId, pours: 0, volumeMl: 0, qualityPoints: 0 };
+  const qualityHighscore = [...eventSummaries].sort((a, b) => b.qualityPoints - a.qualityPoints)[0];
   return {
     pours: personal.length,
     totalVolumeMl: personal.reduce((sum, record) => sum + Number(record.volumeMl), 0),
     currentEventPours: currentEvent.pours,
     currentEventVolumeMl: currentEvent.volumeMl,
+    currentEventQualityPoints: currentEvent.qualityPoints,
     highscoreMl: eventSummaries[0]?.volumeMl || 0,
     highscoreEventId: eventSummaries[0]?.eventId || null,
+    highscorePoints: qualityHighscore?.qualityPoints || 0,
     registeredGlassCount: new Set(personal.map((record) => record.glassToken).filter(Boolean)).size,
     eventSummaries
+  };
+}
+
+export function calculateGamification(records = [], userId, assignments = [], currentEventId = null) {
+  const personal = records.filter((record) => record?.personalized && record.userId === userId);
+  const userAssignments = assignments.filter((assignment) => assignment?.userId === userId);
+  const precisePours = personal.filter((record) => {
+    const target = Number(record.targetFillPercent ?? 100);
+    return Math.abs(Number(record.fillPercent) - target) <= 2;
+  }).length;
+  const slots = new Set(personal.map((record) => Number(record.slot)).filter(Number.isFinite));
+  const eventIds = new Set(personal.map((record) => record.eventId).filter(Boolean));
+  const eventsByToken = new Map();
+  for (const assignment of userAssignments) {
+    if (!assignment.tokenId || !assignment.eventId) continue;
+    const events = eventsByToken.get(assignment.tokenId) || new Set();
+    events.add(assignment.eventId);
+    eventsByToken.set(assignment.tokenId, events);
+  }
+  const reusedAcrossEvents = [...eventsByToken.values()].some((events) => events.size >= 2);
+  const badges = [
+    { id: "qr-pioneer", title: "QR-Pionier", description: "Ein persönliches Glas registriert", unlocked: userAssignments.length >= 1, icon: "⌁" },
+    { id: "precision", title: "Präzisionszapfer", description: "Drei Füllungen innerhalb ±2 %", unlocked: precisePours >= 3, icon: "◎" },
+    { id: "carousel", title: "Rondell-Entdecker", description: "Drei verschiedene Positionen genutzt", unlocked: slots.size >= 3, icon: "◌" },
+    { id: "reuse", title: "Mehrweg-Fan", description: "Dasselbe Glas bei zwei Events genutzt", unlocked: reusedAcrossEvents, icon: "↺" }
+  ];
+  const unlockedCount = badges.filter((badge) => badge.unlocked).length;
+  const uniqueTokens = new Set(userAssignments.map((assignment) => assignment.tokenId).filter(Boolean)).size;
+  const xp = uniqueTokens * 20 + eventIds.size * 15 + Math.min(precisePours, 5) * 10 + unlockedCount * 20;
+  const level = Math.floor(xp / 100) + 1;
+  const currentLevelXp = (level - 1) * 100;
+  return {
+    xp,
+    level,
+    levelProgressPercent: Math.min(100, xp - currentLevelXp),
+    xpToNextLevel: Math.max(0, level * 100 - xp),
+    badges,
+    unlockedCount,
+    precisePours,
+    currentEventQualityPoints: aggregatePersonalHistory(records, userId, currentEventId).currentEventQualityPoints
   };
 }
 
@@ -261,12 +312,13 @@ function csvCell(value) {
 }
 
 export function historyToCsv(records = []) {
-  const header = ["Zeitpunkt", "Position", "Glas_ml", "Fuellstand_Prozent", "Menge_ml", "Temperatur_C", "Quelle", "Personalisiert", "Benutzer", "Glas_ID", "Event_ID"];
+  const header = ["Zeitpunkt", "Position", "Glas_ml", "Fuellstand_Prozent", "Ziel_Prozent", "Menge_ml", "Temperatur_C", "Quelle", "Personalisiert", "Benutzer", "Glas_ID", "Event_ID"];
   const rows = records.map((record) => [
     record.timestamp,
     record.slot,
     record.glassMl,
     record.fillPercent,
+    record.targetFillPercent,
     record.volumeMl,
     record.temperatureC,
     record.source,

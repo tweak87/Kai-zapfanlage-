@@ -40,6 +40,7 @@ void emitPour(uint8_t slot) {
   message["slot"] = constrain(slot, 1, 6);
   message["glassMl"] = profile.glassMl;
   message["fillPercent"] = profile.fillPercent;
+  message["targetFillPercent"] = profile.fillPercent;
   message["volumeMl"] = profile.glassMl * profile.fillPercent / 100;
   message["temperatureC"] = 5.4;
   message["measurement"] = "estimated";
