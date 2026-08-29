@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d1110" />
+    <meta
+      name="description"
+      content="Bedien- und Testoberfläche für die Kai Zapfanlage mit Arduino-Mock, Rondellstatistik und Administration."
+    />
+    <title>Kai Tap Control</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Zum Inhalt springen</a>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Hauptnavigation">
+        <a class="brand" href="#betrieb" aria-label="Kai Tap Control Startseite">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 40 40" role="img">
+              <path d="M12 9h16v8c0 6.7-2.6 12.2-8 15-5.4-2.8-8-8.3-8-15V9Z" />
+              <path d="M16 5h8M20 5v4M16 16h8" />
+            </svg>
+          </span>
+          <span><strong>KAI</strong><small>TAP CONTROL</small></span>
+        </a>
+
+        <nav class="nav-list">
+          <button class="nav-item is-active" data-view="betrieb" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">⌁</span><span>Betrieb</span>
+          </button>
+          <button class="nav-item" data-view="historie">
+            <span class="nav-icon" aria-hidden="true">↺</span><span>Historie</span>
+          </button>
+          <button class="nav-item" data-view="analyse">
+            <span class="nav-icon" aria-hidden="true">▥</span><span>Analyse</span>
+          </button>
+          <button class="nav-item" data-view="system">
+            <span class="nav-icon" aria-hidden="true">⚙</span><span>System</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <span class="eyebrow">Temperatur</span>
+          <strong id="side-temperature">5,4 °C</strong>
+          <span class="status-row"><i class="status-dot ok"></i><span>Im Zielbereich</span></span>
+        </div>
+      </aside>
+
+      <div class="content-shell">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="view-kicker">LIVE-BETRIEB</p>
+            <h1 id="view-title">Zapfanlage</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="connection-state" id="connection-state" aria-live="polite">
+              <i class="status-dot mock"></i>
+              <span><strong>Mock-Arduino</strong><small>Simuliert · bereit</small></span>
+            </div>
+            <button class="button button-secondary" id="connect-button" type="button">
+              <span aria-hidden="true">⌁</span> USB verbinden
+            </button>
+            <button class="icon-button" id="admin-button" type="button" aria-label="Administration öffnen" title="Administration">
+              <span aria-hidden="true">⚙</span>
+            </button>
+          </div>
+        </header>
+
+        <main id="main-content">
+          <section class="view is-active" id="view-betrieb" data-view-panel="betrieb">
+            <div class="metric-grid" aria-label="Kennzahlen">
+              <article class="metric-card accent">
+                <div class="metric-top"><span>HEUTE GEZAPFT</span><span class="metric-icon">◉</span></div>
+                <strong><span id="metric-pours">0</span><small> Gläser</small></strong>
+                <p id="metric-pours-detail">Noch kein Zapfvorgang heute</p>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>BIERMENGE</span><span class="metric-icon">◒</span></div>
+                <strong><span id="metric-volume">0,0</span><small> L</small></strong>
+                <p>Kalibrierter Schätzwert</p>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>Ø FÜLLSTAND</span><span class="metric-icon">≋</span></div>
+                <strong><span id="metric-fill">—</span><small id="metric-fill-unit"></small></strong>
+                <p id="metric-fill-detail">Noch keine Messwerte</p>
+              </article>
+              <article class="metric-card">
+                <div class="metric-top"><span>FASSREST</span><span class="metric-icon">◐</span></div>
+                <strong><span id="metric-keg">30,0</span><small> L</small></strong>
+                <p id="metric-keg-detail">Geschätzt aus Startvolumen</p>
+              </article>
+            </div>
+
+            <div class="operation-grid">
+              <article class="panel carousel-panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">RONDELL · 6 POSITIONEN</p>
+                    <h2>Gläserübersicht</h2>
+                  </div>
+                  <span class="pill success" id="machine-state">BEREIT</span>
+                </div>
+
+                <div class="carousel-stage" aria-label="Sechs Positionen des Gläserrondells">
+                  <div class="carousel-ring" id="carousel-ring">
+                    <div class="tap-head" aria-hidden="true">
+                      <span class="tap-nozzle"></span>
+                      <svg viewBox="0 0 88 64"><path d="M15 13h40v12H43v8H31v-8H15zM55 17h18v8H55M37 33v17" /></svg>
+                    </div>
+                    <div class="ring-center">
+                      <span class="ring-label">AKTIVE POSITION</span>
+                      <strong id="active-position">—</strong>
+                      <small id="active-phase">Wartet</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="legend">
+                  <span><i class="legend-dot present"></i>Glas erkannt</span>
+                  <span><i class="legend-dot active"></i>Aktiv</span>
+                  <span><i class="legend-dot missing"></i>Kein Glas</span>
+                </div>
+              </article>
+
+              <article class="panel control-panel">
+                <div class="panel-header">
+                  <div>
+                    <p class="eyebrow">STEUERUNG</p>
+                    <h2>Zapfzyklus</h2>
+                  </div>
+                  <button class="text-button" id="reset-session" type="button">Session leeren</button>
+                </div>
+
+                <label class="field-label" for="scenario-select">Testszenario</label>
+                <div class="select-wrap">
+                  <select id="scenario-select">
+                    <option value="full">6 volle 0,5-l-Gläser</option>
+                    <option value="mixed">Gemischt · 0,3 l / 0,5 l</option>
+                    <option value="missing">Position 3 und 5 fehlen</option>
+                    <option value="underfill">Unterfüllung an Position 4</option>
+                    <option value="empty-keg">Fass wird leer</option>
+                  </select>
+                </div>
+
+                <div class="cycle-progress">
+                  <div class="progress-copy"><span id="progress-label">Bereit für neuen Durchlauf</span><strong id="progress-value">0 %</strong></div>
+                  <div class="progress-track"><span id="progress-bar"></span></div>
+                  <ol class="phase-list" aria-label="Phasen des Zapfvorgangs">
+                    <li data-phase="scan"><span>1</span>Prüfen</li>
+                    <li data-phase="lower"><span>2</span>Absenken</li>
+                    <li data-phase="pour"><span>3</span>Zapfen</li>
+                    <li data-phase="foam"><span>4</span>Schaum</li>
+                    <li data-phase="rotate"><span>5</span>Drehen</li>
+                  </ol>
+                </div>
+
+                <div class="control-actions">
+                  <button class="button button-primary button-large" id="start-cycle" type="button">
+                    <span class="play-icon" aria-hidden="true">▶</span> 6er-Zyklus starten
+                  </button>
+                  <button class="button button-danger" id="stop-cycle" type="button" disabled>
+                    <span aria-hidden="true">■</span> Stopp
+                  </button>
+                </div>
+                <p class="control-note"><span aria-hidden="true">ⓘ</span> Im Mock-Modus werden Sensoren, Motoren und Servos zeitlich realistisch simuliert.</p>
+              </article>
+            </div>
+
+            <article class="panel slot-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">POSITIONSDATEN</p>
+                  <h2>Rondell-Performance</h2>
+                </div>
+                <span class="panel-meta">Lokal in diesem Browser gespeichert</span>
+              </div>
+              <div class="slot-grid" id="slot-grid"></div>
+            </article>
+          </section>
+
+          <section class="view" id="view-historie" data-view-panel="historie" hidden>
+            <article class="panel page-panel">
+              <div class="panel-header wrap">
+                <div>
+                  <p class="eyebrow">PROTOKOLL</p>
+                  <h2>Zapfhistorie</h2>
+                  <p class="panel-intro">Jeder simulierte oder später vom Arduino bestätigte Zapfvorgang wird positionsgenau erfasst.</p>
+                </div>
+                <div class="header-actions">
+                  <button class="button button-secondary" id="export-csv" type="button">CSV exportieren</button>
+                  <button class="button button-ghost danger-text" id="clear-history" type="button">Historie löschen</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Zeit</th><th>Position</th><th>Glas</th><th>Füllung</th><th>Menge</th><th>Quelle</th><th>Status</th></tr></thead>
+                  <tbody id="history-body"></tbody>
+                </table>
+                <div class="empty-state" id="history-empty">
+                  <span aria-hidden="true">↺</span><h3>Noch keine Zapfvorgänge</h3><p>Starte im Bereich „Betrieb“ ein Testszenario.</p>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="view" id="view-analyse" data-view-panel="analyse" hidden>
+            <div class="analysis-grid">
+              <article class="panel chart-panel">
+                <div class="panel-header"><div><p class="eyebrow">VERTEILUNG</p><h2>Zapfungen je Rondellplatz</h2></div><span class="pill neutral">GESAMT</span></div>
+                <div class="bar-chart" id="slot-chart" aria-label="Balkendiagramm Zapfungen je Rondellplatz"></div>
+              </article>
+              <article class="panel quality-panel">
+                <div class="panel-header"><div><p class="eyebrow">QUALITÄT</p><h2>Füllgenauigkeit</h2></div></div>
+                <div class="gauge" id="quality-gauge" style="--value: 0">
+                  <div><strong id="quality-value">—</strong><span>im Zielband</span></div>
+                </div>
+                <div class="quality-stats">
+                  <div><span>Unterfüllt</span><strong id="quality-low">0</strong></div>
+                  <div><span>Im Ziel</span><strong id="quality-ok">0</strong></div>
+                  <div><span>Überfüllt</span><strong id="quality-high">0</strong></div>
+                </div>
+                <p class="data-caveat">Aktuell simuliert bzw. rechnerisch geschätzt. Für echte Milliliterwerte wird ein Durchfluss- oder Gewichtssensor benötigt.</p>
+              </article>
+              <article class="panel maintenance-panel">
+                <div class="panel-header"><div><p class="eyebrow">WARTUNG</p><h2>Reinigung & Verschleiß</h2></div></div>
+                <div class="maintenance-row"><span class="maintenance-icon">✦</span><div><strong>Leitungsreinigung</strong><small id="cleaning-copy">Noch 100 Zapfungen bis zur Empfehlung</small></div><span class="pill success" id="cleaning-state">OK</span></div>
+                <div class="progress-track slim"><span id="cleaning-progress"></span></div>
+                <button class="button button-secondary full-width" id="mark-cleaned" type="button">Reinigung als erledigt markieren</button>
+              </article>
+              <article class="panel insight-panel">
+                <p class="eyebrow">EMPFEHLUNG</p>
+                <h2 id="insight-title">Ersten Testlauf starten</h2>
+                <p id="insight-copy">Danach bewertet das Dashboard Verteilung, Füllgenauigkeit und mögliche Abweichungen je Position.</p>
+                <button class="text-button" data-go-view="betrieb" type="button">Zum Zapfzyklus →</button>
+              </article>
+            </div>
+          </section>
+
+          <section class="view" id="view-system" data-view-panel="system" hidden>
+            <div class="system-grid">
+              <article class="panel connection-panel">
+                <div class="panel-header"><div><p class="eyebrow">VERBINDUNG</p><h2>Arduino-Schnittstelle</h2></div><span class="pill warning" id="serial-badge">MOCK AKTIV</span></div>
+                <div class="system-status-visual">
+                  <div class="device-card">
+                    <span class="device-icon">⌁</span><div><strong>ESP32 · Zapfanlage</strong><small id="device-detail">Virtuelles Gerät</small></div><i class="status-dot mock"></i>
+                  </div>
+                  <div class="protocol-line"><span></span><small>JSON · 115200 Baud · USB</small><span></span></div>
+                  <div class="browser-card"><span class="device-icon">◎</span><div><strong>Webanwendung</strong><small>Web Serial vorbereitet</small></div><i class="status-dot ok"></i></div>
+                </div>
+                <button class="button button-primary full-width" id="system-connect" type="button">Echten Arduino verbinden</button>
+                <p class="data-caveat" id="serial-support-note">Chrome oder Edge auf einem Desktopgerät erforderlich. Der Arduino benötigt die dokumentierte JSON-Seriell-Erweiterung.</p>
+              </article>
+
+              <article class="panel feature-panel">
+                <div class="panel-header"><div><p class="eyebrow">HEUTIGER STAND</p><h2>Bestehende Steuerung V4.4</h2></div></div>
+                <ul class="feature-list">
+                  <li><span>✓</span><div><strong>Automatischer 6er-Durchlauf</strong><small>Glas prüfen, absenken, zapfen, Schaumphase, weiterdrehen</small></div></li>
+                  <li><span>✓</span><div><strong>Motor- und Servosteuerung</strong><small>Zwei TMC5160-Schrittmotoren, Hahn- und Kompensatorservo</small></div></li>
+                  <li><span>✓</span><div><strong>Lokale Parameter</strong><small>Durchfluss, Schaum, Füllhöhe, Steiggeschwindigkeit und Pause im EEPROM</small></div></li>
+                  <li><span>✓</span><div><strong>Sicherheitsfunktionen</strong><small>Not-Aus, Endschalter, Nullstellung und Fasswechselmodus</small></div></li>
+                </ul>
+              </article>
+
+              <article class="panel roadmap-panel">
+                <div class="panel-header"><div><p class="eyebrow">ERWEITERUNGSPLAN</p><h2>Vom Mockup zur Anlage</h2></div></div>
+                <ol class="roadmap-list">
+                  <li class="done"><span>1</span><div><strong>Web-Mock & Datenmodell</strong><small>Jetzt verfügbar</small></div></li>
+                  <li><span>2</span><div><strong>Serielles JSON-Protokoll im ESP32</strong><small>Nicht-blockierende Statusmeldungen und Befehle ergänzen</small></div></li>
+                  <li><span>3</span><div><strong>Mengenmessung kalibrieren</strong><small>Durchflusssensor oder Wägezelle nachrüsten</small></div></li>
+                  <li><span>4</span><div><strong>Langzeitdaten zentral speichern</strong><small>Optionaler Backenddienst für mehrere Geräte und Benutzer</small></div></li>
+                </ol>
+              </article>
+
+              <article class="panel protocol-panel">
+                <div class="panel-header"><div><p class="eyebrow">PROTOKOLL-VORSCHAU</p><h2>Beispieltelegramm</h2></div></div>
+                <pre><code>{
+  "type": "pour.completed",
+  "slot": 3,
+  "glassMl": 500,
+  "volumeMl": 487,
+  "fillPercent": 97,
+  "temperatureC": 5.4
+}</code></pre>
+                <a class="text-link" href="./docs/SERIAL_PROTOCOL.md">Schnittstellendokumentation öffnen →</a>
+              </article>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <dialog class="admin-dialog" id="admin-dialog">
+      <form method="dialog" class="dialog-shell" id="admin-form">
+        <div class="dialog-header">
+          <div><p class="eyebrow">ADMINISTRATION</p><h2 id="admin-title">Einstellungen entsperren</h2></div>
+          <button class="icon-button" value="cancel" aria-label="Dialog schließen" type="submit">×</button>
+        </div>
+
+        <div class="login-panel" id="admin-login">
+          <div class="lock-visual" aria-hidden="true">⌑</div>
+          <p>Die Anlagenparameter sind vor unbeabsichtigten Änderungen geschützt.</p>
+          <label class="field-label" for="admin-pin">Admin-PIN</label>
+          <input id="admin-pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="12" placeholder="PIN eingeben" />
+          <p class="field-hint">Mockup-PIN: <code>2468</code>. Der Schutz gilt nur lokal in diesem Browser.</p>
+          <button class="button button-primary full-width" id="unlock-admin" type="button">Entsperren</button>
+          <p class="form-error" id="pin-error" role="alert"></p>
+        </div>
+
+        <div class="settings-panel" id="admin-settings" hidden>
+          <div class="settings-tabs" role="tablist" aria-label="Einstellungsgruppen">
+            <button type="button" role="tab" aria-selected="true" data-settings-tab="fill">Füllprofil</button>
+            <button type="button" role="tab" aria-selected="false" data-settings-tab="machine">Mechanik</button>
+            <button type="button" role="tab" aria-selected="false" data-settings-tab="monitoring">Überwachung</button>
+            <button type="button" role="tab" aria-selected="false" data-settings-tab="security">Sicherheit</button>
+          </div>
+
+          <div class="settings-content is-active" data-settings-panel="fill">
+            <div class="setting-row"><div><label for="setting-volume">Nennfüllmenge</label><small>Zielmenge eines vollen Glases</small></div><div class="number-field"><input id="setting-volume" type="number" min="200" max="1000" step="10" /><span>ml</span></div></div>
+            <div class="setting-row range-row"><div><label for="setting-flow">Durchflussrate</label><small>Bestehender EEPROM-Wert 1–10</small></div><output id="output-flow">7</output><input id="setting-flow" type="range" min="1" max="10" /></div>
+            <div class="setting-row range-row"><div><label for="setting-foam">Schaumniveau</label><small>Dauer der Rückwärts-Hahnstellung</small></div><output id="output-foam">4</output><input id="setting-foam" type="range" min="1" max="10" /></div>
+            <div class="setting-row range-row"><div><label for="setting-height">Füllhöhe</label><small>Hubweg des Schlittens beim Zapfen</small></div><output id="output-height">8</output><input id="setting-height" type="range" min="1" max="10" /></div>
+            <div class="setting-row"><div><label for="setting-tolerance">Zielband Füllung</label><small>Grenze für Qualitätsbewertung</small></div><div class="number-field"><input id="setting-tolerance" type="number" min="1" max="15" /><span>± %</span></div></div>
+          </div>
+
+          <div class="settings-content" data-settings-panel="machine" hidden>
+            <div class="setting-row range-row"><div><label for="setting-lift">Steiggeschwindigkeit</label><small>Bestehender EEPROM-Wert 1–10</small></div><output id="output-lift">9</output><input id="setting-lift" type="range" min="1" max="10" /></div>
+            <div class="setting-row range-row"><div><label for="setting-delay">Anzapfzeit</label><small>Pause vor dem Hochfahren, Faktor × 300 ms</small></div><output id="output-delay">2</output><input id="setting-delay" type="range" min="1" max="10" /></div>
+            <div class="setting-row range-row"><div><label for="setting-carousel">Rondellgeschwindigkeit</label><small>Nur Mockup; Firmware-Kalibrierung folgt</small></div><output id="output-carousel">5</output><input id="setting-carousel" type="range" min="1" max="10" /></div>
+            <div class="setting-row"><div><label for="setting-keg">Fassgröße</label><small>Basis für die Restmengenschätzung</small></div><div class="number-field"><input id="setting-keg" type="number" min="5" max="100" step="0.5" /><span>L</span></div></div>
+          </div>
+
+          <div class="settings-content" data-settings-panel="monitoring" hidden>
+            <div class="setting-row"><div><label for="setting-temp-min">Temperatur Minimum</label><small>Untergrenze für Warnungen</small></div><div class="number-field"><input id="setting-temp-min" type="number" min="0" max="15" step="0.5" /><span>°C</span></div></div>
+            <div class="setting-row"><div><label for="setting-temp-max">Temperatur Maximum</label><small>Obergrenze für Warnungen</small></div><div class="number-field"><input id="setting-temp-max" type="number" min="1" max="20" step="0.5" /><span>°C</span></div></div>
+            <div class="setting-row"><div><label for="setting-cleaning">Reinigungsintervall</label><small>Erinnerung nach Anzahl Zapfungen</small></div><div class="number-field"><input id="setting-cleaning" type="number" min="10" max="1000" step="10" /><span>Gläser</span></div></div>
+            <label class="switch-row"><span><strong>Akustische Hinweise</strong><small>Browserton bei Abschluss und Fehler</small></span><input id="setting-sound" type="checkbox" role="switch" /></label>
+          </div>
+
+          <div class="settings-content" data-settings-panel="security" hidden>
+            <div class="security-note"><strong>Hinweis zum Schutz</strong><p>GitHub Pages ist statisch. Die PIN verhindert versehentliche Bedienung, ist aber kein manipulationssicherer Zugriffsschutz. Echte Schreibbefehle müssen zusätzlich in der ESP32-Firmware freigegeben und validiert werden.</p></div>
+            <div class="setting-row"><div><label for="setting-new-pin">Neue lokale Admin-PIN</label><small>Leer lassen, um die aktuelle PIN zu behalten</small></div><input class="simple-input" id="setting-new-pin" type="password" inputmode="numeric" maxlength="12" placeholder="Neue PIN" /></div>
+            <label class="switch-row"><span><strong>Physische Freigabe verlangen</strong><small>Vor echten Parameteränderungen muss später Enter an der Anlage gedrückt werden</small></span><input id="setting-physical-confirm" type="checkbox" role="switch" /></label>
+          </div>
+
+          <div class="dialog-footer">
+            <span id="settings-dirty">Keine ungespeicherten Änderungen</span>
+            <button class="button button-secondary" id="lock-admin" type="button">Sperren</button>
+            <button class="button button-primary" id="save-settings" type="button">Einstellungen speichern</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="./assets/app.js"></script>
+  </body>
+</html>
